@@ -6,8 +6,8 @@ from datetime import datetime
 from dateutil import parser as dt_parser
 from dateutil import tz
 
-# notification libs
-from twilio.rest import Client
+## notification libs
+# from twilio.rest import Client
 ## OSX terminal alerts
 # import pync
 
@@ -39,16 +39,16 @@ def get_available_spots(departure_date: str, direction: str):
 
 def send_sms_alert(phone_number, message):
     url = 'https://textbelt.com/text'
-    # data = {
-    #     'phone': phone_number,
-    #     'message': message,
-    #     'key': 'textbelt',  # Use 'textbelt' for free tier
-    # }
-    # response = requests.post(url, data=data)
-    # if response.json()['success']:
-    #     print(f"SMS sent successfully to {phone_number}")
-    # else:
-    #     print(f"Failed to send SMS to {phone_number}: {response.json()['error']}")
+    data = {
+        'phone': phone_number,
+        'message': message,
+        'key': 'textbelt',  # Use 'textbelt' for free tier
+    }
+    response = requests.post(url, data=data)
+    if response.json()['success']:
+        print(f"SMS sent successfully to {phone_number}")
+    else:
+        print(f"Failed to send SMS to {phone_number}: {response.json()['error']}")
 
 ### Twilio option
     # account_sid = TWILIO_ACCOUNT_SID
