@@ -26,8 +26,6 @@ COPY --from=builder /ferry-scanner /ferry-scanner
 # Copy static files
 COPY --from=builder /app/execution/static /static
 
-# Copy configuration (optional, if needed by future agents)
-COPY .env .
 
 # Expose port
 EXPOSE 8080
