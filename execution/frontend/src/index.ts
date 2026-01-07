@@ -15,13 +15,14 @@ interface FerryResponse {
 
 // State
 let monitoringInterval: number | null = null;
+let beepInterval: number | null = null;
 const selectedTrips = new Set<string>();
 let lastData: Trip[] = [];
 let lastEmailSentTime: number = 0;
 const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
 // Audio
-const beep = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+const beep = new Audio('https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg');
 
 // DOM Elements
 const dateInput = document.getElementById('date') as HTMLInputElement;
@@ -40,18 +41,46 @@ const alertBrowserCheck = document.getElementById('alertBrowser') as HTMLInputEl
 const alertEmailCheck = document.getElementById('alertEmail') as HTMLInputElement;
 const emailInput = document.getElementById('email') as HTMLInputElement;
 
-// Initialize
-if (dateInput) {
-    dateInput.valueAsDate = new Date();
+
+// Audio Helper
+function playBeep() {
+    beep.play().catch(e => console.error("Audio error:", e));
 }
 
-if (alertEmailCheck) {
-    alertEmailCheck.addEventListener('change', () => {
-        if (emailInput) {
-            emailInput.style.display = alertEmailCheck.checked ? 'block' : 'none';
-            if (alertEmailCheck.checked) emailInput.focus();
-        }
-    });
+function stopBeep() {
+    if (beepInterval) {
+        clearInterval(beepInterval);
+        beepInterval = null;
+    }
+}
+
+// Initialize
+function init() {
+    if (dateInput) {
+        dateInput.valueAsDate = new Date();
+    } else {
+        console.error("Date input not found!");
+    }
+
+    if (alertEmailCheck) {
+        alertEmailCheck.addEventListener('change', () => {
+            if (emailInput) {
+                emailInput.style.display = alertEmailCheck.checked ? 'block' : 'none';
+                if (alertEmailCheck.checked) emailInput.focus();
+            }
+        });
+    }
+
+    // Attach global event listeners
+    if (searchBtn) searchBtn.addEventListener('click', checkAvailability);
+    if (monitorBtn) monitorBtn.addEventListener('click', toggleMonitoring);
+}
+
+// Run init when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
 
 async function fetchTrips(): Promise<FerryResponse> {
@@ -65,7 +94,10 @@ async function fetchTrips(): Promise<FerryResponse> {
     if (endTime) url += `&to=${endTime}`;
 
     const response = await fetch(url);
-    if (!response.ok) throw new Error('API Error');
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API ${response.status}: ${text}`);
+    }
     return await response.json();
 }
 
@@ -188,13 +220,16 @@ async function monitorLoop() {
 
             // Logic: Browser Alert
             if (alertBrowserCheck && alertBrowserCheck.checked) {
-                // Play sound
-                beep.play().catch(e => console.error("Audio error:", e));
+                if (!beepInterval) {
+                    playBeep();
+                    beepInterval = window.setInterval(playBeep, 5000);
+                }
 
-                // Browser Notification
                 if (Notification.permission === "granted") {
                     new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
                 }
+            } else {
+                stopBeep();
             }
 
             // Logic: Email Alert
@@ -211,13 +246,19 @@ async function monitorLoop() {
             }
 
         } else {
+            stopBeep();
             const time = new Date().toLocaleTimeString();
             statusDiv.innerHTML = `<p class="monitoring">Monitoring ${selectedTrips.size} ferries... <br>Last checked: ${time}</p>`;
         }
 
     } catch (err) {
         console.error("Monitor error", err);
-        statusDiv.innerHTML += ` <span style="color:red">(Error refreshing)</span>`;
+        stopBeep();
+        if (err instanceof Error) {
+            statusDiv.innerHTML += ` <span style="color:red">(Error refreshing: ${err.message})</span>`;
+        } else {
+            statusDiv.innerHTML += ` <span style="color:red">(Error refreshing)</span>`;
+        }
     }
 }
 
@@ -225,12 +266,12 @@ function toggleMonitoring() {
     const useBrowser = alertBrowserCheck ? alertBrowserCheck.checked : true;
     const useEmail = alertEmailCheck ? alertEmailCheck.checked : false;
 
-    // Request notification permission if browser option checked
+    // Request notification permission
     if (useBrowser && "Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
 
-    // Validate Email if checked
+    // Validate Email
     if (useEmail && !emailInput.value) {
         alert("Please enter an email address for email alerts.");
         if (emailInput) emailInput.focus();
@@ -240,6 +281,7 @@ function toggleMonitoring() {
     if (monitoringInterval) {
         clearInterval(monitoringInterval);
         monitoringInterval = null;
+        stopBeep();
         monitorBtn.innerText = "Start Monitoring Selected";
         monitorBtn.style.backgroundColor = "var(--success-color)";
         statusDiv.innerText = "Monitoring stopped.";
@@ -255,7 +297,3 @@ function toggleMonitoring() {
         monitorBtn.style.backgroundColor = "var(--danger-color)";
     }
 }
-
-// Attach global event listeners
-searchBtn.addEventListener('click', checkAvailability);
-monitorBtn.addEventListener('click', toggleMonitoring);
