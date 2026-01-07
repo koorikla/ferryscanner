@@ -39,7 +39,10 @@ const resultsDiv = document.getElementById('results') as HTMLDivElement;
 const monitorControls = document.getElementById('monitorControls') as HTMLDivElement;
 const alertBrowserCheck = document.getElementById('alertBrowser') as HTMLInputElement;
 const alertEmailCheck = document.getElementById('alertEmail') as HTMLInputElement;
+const alertTelegramCheck = document.getElementById('alertTelegram') as HTMLInputElement;
 const emailInput = document.getElementById('email') as HTMLInputElement;
+const telegramInputWrapper = document.getElementById('telegramInputWrapper') as HTMLDivElement;
+const telegramChatIdInput = document.getElementById('telegramChatId') as HTMLInputElement;
 
 
 // Audio Helper
@@ -54,13 +57,67 @@ function stopBeep() {
     }
 }
 
+// ... (Audio Helper remains)
+
+function saveSettings() {
+    const settings = {
+        date: dateInput.value,
+        direction: directionSelect.value,
+        vehicleType: vehicleTypeSelect.value,
+        startTime: startTimeInput.value,
+        endTime: endTimeInput.value,
+        alertBrowser: alertBrowserCheck.checked,
+        alertEmail: alertEmailCheck.checked,
+        email: emailInput.value || ""
+        // alertTelegram and telegramChatId will be added here later
+    };
+    localStorage.setItem('ferrySettings', JSON.stringify(settings));
+}
+
+function loadSettings() {
+    const saved = localStorage.getItem('ferrySettings');
+    if (saved) {
+        try {
+            const settings = JSON.parse(saved);
+            if (settings.date) dateInput.value = settings.date;
+            else dateInput.valueAsDate = new Date(); // Default if not saved
+
+            if (settings.direction) directionSelect.value = settings.direction;
+            if (settings.vehicleType) vehicleTypeSelect.value = settings.vehicleType;
+            if (settings.startTime) startTimeInput.value = settings.startTime;
+            if (settings.endTime) endTimeInput.value = settings.endTime;
+
+            if (settings.alertBrowser !== undefined) alertBrowserCheck.checked = settings.alertBrowser;
+            if (settings.alertEmail !== undefined) {
+                alertEmailCheck.checked = settings.alertEmail;
+                if (settings.alertEmail) emailInput.style.display = 'block';
+            }
+            if (settings.email) emailInput.value = settings.email;
+        } catch (e) {
+            console.error("Failed to load settings", e);
+            dateInput.valueAsDate = new Date();
+        }
+    } else {
+        dateInput.valueAsDate = new Date();
+    }
+}
+
 // Initialize
 function init() {
-    if (dateInput) {
-        dateInput.valueAsDate = new Date();
-    } else {
-        console.error("Date input not found!");
+    if (!dateInput) {
+        console.error("Critical elements missing");
+        return;
     }
+
+    loadSettings();
+
+    // Change Listeners for persistence
+    const inputs = [dateInput, directionSelect, vehicleTypeSelect, startTimeInput, endTimeInput, alertBrowserCheck, alertEmailCheck, alertTelegramCheck, emailInput, telegramChatIdInput];
+    inputs.forEach(input => {
+        if (input) input.addEventListener('change', saveSettings);
+    });
+    if (emailInput) emailInput.addEventListener('input', saveSettings);
+    if (telegramChatIdInput) telegramChatIdInput.addEventListener('input', saveSettings);
 
     if (alertEmailCheck) {
         alertEmailCheck.addEventListener('change', () => {
@@ -71,10 +128,20 @@ function init() {
         });
     }
 
+    if (alertTelegramCheck) {
+        alertTelegramCheck.addEventListener('change', () => {
+            if (telegramInputWrapper) {
+                telegramInputWrapper.style.display = alertTelegramCheck.checked ? 'block' : 'none';
+                if (alertTelegramCheck.checked) telegramChatIdInput.focus();
+            }
+        });
+    }
+
     // Attach global event listeners
     if (searchBtn) searchBtn.addEventListener('click', checkAvailability);
     if (monitorBtn) monitorBtn.addEventListener('click', toggleMonitoring);
 }
+//...
 
 // Run init when DOM is ready
 if (document.readyState === 'loading') {
@@ -182,16 +249,16 @@ function toggleSelection(id: string) {
     }
 }
 
-async function sendEmailAlert(email: string, message: string) {
+async function sendEmailAlert(email: string, telegramChatId: string, message: string) {
     try {
         await fetch('/api/alert', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, message })
+            body: JSON.stringify({ email, telegram_chat_id: telegramChatId, message })
         });
-        console.log("Email alert requested");
+        console.log("Alert requested");
     } catch (e) {
-        console.error("Failed to send email alert", e);
+        console.error("Failed to send alert", e);
     }
 }
 
@@ -232,16 +299,23 @@ async function monitorLoop() {
                 stopBeep();
             }
 
-            // Logic: Email Alert
-            if (alertEmailCheck && alertEmailCheck.checked) {
-                const email = emailInput.value;
+            // Logic: Email & Telegram Alert
+            const useEmail = alertEmailCheck && alertEmailCheck.checked;
+            const useTelegram = alertTelegramCheck && alertTelegramCheck.checked;
+
+            if (useEmail || useTelegram) {
                 const now = Date.now();
-                if (email && (now - lastEmailSentTime > EMAIL_COOLDOWN)) {
-                    await sendEmailAlert(email, `Spots available for ferries at: ${foundText} (${type.toUpperCase()})`);
-                    lastEmailSentTime = now;
-                    statusDiv.innerHTML += `<br><small style="color: #666">Email alert sent!</small>`;
-                } else if (!email) {
-                    statusDiv.innerHTML += `<br><small style="color: red">Email checked but address missing!</small>`;
+                if (now - lastEmailSentTime > EMAIL_COOLDOWN) {
+                    if (useEmail || useTelegram) {
+                        const email = (useEmail && emailInput) ? emailInput.value : "";
+                        const telegram = (useTelegram && telegramChatIdInput) ? telegramChatIdInput.value : "";
+
+                        if (email || telegram) {
+                            await sendEmailAlert(email, telegram, `Spots available for ferries at: ${foundText} (${type.toUpperCase()})`);
+                            lastEmailSentTime = now;
+                            statusDiv.innerHTML += `<br><small style="color: #666">Alerts sent!</small>`;
+                        }
+                    }
                 }
             }
 
@@ -265,16 +339,22 @@ async function monitorLoop() {
 function toggleMonitoring() {
     const useBrowser = alertBrowserCheck ? alertBrowserCheck.checked : true;
     const useEmail = alertEmailCheck ? alertEmailCheck.checked : false;
+    const useTelegram = alertTelegramCheck ? alertTelegramCheck.checked : false;
 
     // Request notification permission
     if (useBrowser && "Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
 
-    // Validate Email
-    if (useEmail && !emailInput.value) {
-        alert("Please enter an email address for email alerts.");
+    // Validation
+    if (useEmail && (!emailInput || !emailInput.value)) {
+        alert("Enter email address.");
         if (emailInput) emailInput.focus();
+        return;
+    }
+    if (useTelegram && (!telegramChatIdInput || !telegramChatIdInput.value)) {
+        alert("Enter Telegram Chat ID.");
+        if (telegramChatIdInput) telegramChatIdInput.focus();
         return;
     }
 

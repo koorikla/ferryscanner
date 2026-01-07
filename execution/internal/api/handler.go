@@ -10,7 +10,8 @@ import (
 )
 
 type Server struct {
-	EmailService *notification.Service
+	EmailService    *notification.Service
+	TelegramService *notification.TelegramService
 }
 
 func (s *Server) HandleScan(w http.ResponseWriter, r *http.Request) {
@@ -67,8 +68,9 @@ func (s *Server) HandleScan(w http.ResponseWriter, r *http.Request) {
 }
 
 type AlertRequest struct {
-	Email   string `json:"email"`
-	Message string `json:"message"`
+	Email          string `json:"email"`
+	TelegramChatID string `json:"telegram_chat_id"`
+	Message        string `json:"message"`
 }
 
 func (s *Server) HandleAlert(w http.ResponseWriter, r *http.Request) {
@@ -79,27 +81,27 @@ func (s *Server) HandleAlert(w http.ResponseWriter, r *http.Request) {
 
 	var req AlertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if req.Email == "" {
-		http.Error(w, "Email required", http.StatusBadRequest)
-		return
+	// Email
+	if req.Email != "" && s.EmailService != nil {
+		go func() {
+			if err := s.EmailService.SendAlert(req.Email, req.Message); err != nil {
+				log.Printf("Error sending email: %v\n", err)
+			}
+		}()
 	}
 
-	if s.EmailService == nil {
-		http.Error(w, "Email service not configured", http.StatusServiceUnavailable)
-		return
+	// Telegram
+	if req.TelegramChatID != "" && s.TelegramService != nil {
+		go func() {
+			if err := s.TelegramService.SendAlert(req.TelegramChatID, req.Message); err != nil {
+				log.Printf("Error sending telegram: %v\n", err)
+			}
+		}()
 	}
-
-	go func() {
-		if err := s.EmailService.SendAlert(req.Email, req.Message); err != nil {
-			log.Printf("Failed to send alert to %s: %v", req.Email, err)
-		} else {
-			log.Printf("Alert sent to %s", req.Email)
-		}
-	}()
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Alert queued"))

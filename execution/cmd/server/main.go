@@ -20,9 +20,16 @@ func main() {
 	}
 	emailService := notification.NewService(emailConfig)
 
+	// Telegram Config
+	telegramConfig := notification.TelegramConfig{
+		BotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+	}
+	telegramService := notification.NewTelegramService(telegramConfig)
+
 	// API Server
 	server := &api.Server{
-		EmailService: emailService,
+		EmailService:    emailService,
+		TelegramService: telegramService,
 	}
 
 	http.HandleFunc("/api/scan", server.HandleScan)

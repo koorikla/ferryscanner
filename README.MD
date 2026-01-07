@@ -61,9 +61,13 @@ SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 SMTP_FROM=your_email@gmail.com
+
+# Telegram Alerts (Optional)
+TELEGRAM_BOT_TOKEN=1234567890:AbCdefGhIjKlMnOpQrStNvWxYz
 ```
 
 > **Note for Gmail:** You cannot use your regular password. You MUST enable 2FA and create an [App Password](https://myaccount.google.com/apppasswords).
+> **Note for Telegram:** Create a bot via [@BotFather](https://t.me/BotFather) and get the token. The Chat ID is entered in the UI.
 
 ## Deployment
 
