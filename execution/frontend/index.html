@@ -251,8 +251,22 @@
 
         <div class="btn-group">
             <button onclick="checkAvailability()" id="searchBtn">Find Ferries</button>
-            <button onclick="toggleMonitoring()" id="monitorBtn"
-                style="background-color: var(--success-color); display: none;">Start Monitoring Selected</button>
+            <div id="monitorControls" class="monitor-controls"
+                style="flex: 1; display: none; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                        <input type="checkbox" id="alertBrowser" checked style="width: auto; margin-right: 5px;">
+                        Browser Sound/Popup
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; font-weight: normal;">
+                        <input type="checkbox" id="alertEmail" style="width: auto; margin-right: 5px;"> Email
+                    </label>
+                </div>
+                <input type="email" id="email" placeholder="Email for alerts (required if Email checked)"
+                    style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%; box-sizing: border-box; display: none;">
+                <button onclick="toggleMonitoring()" id="monitorBtn"
+                    style="background-color: var(--success-color);">Start Monitoring Selected</button>
+            </div>
         </div>
 
         <div id="status"></div>

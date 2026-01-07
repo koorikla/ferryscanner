@@ -2,21 +2,44 @@ package main
 
 import (
 	"execution/internal/api"
+	"execution/internal/notification"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
 	// Serve static files
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/", fs)
+	// Email Config
+	emailConfig := notification.Config{
+		Host:     getEnv("SMTP_HOST", ""),
+		Port:     getEnv("SMTP_PORT", ""),
+		Username: getEnv("SMTP_USER", ""),
+		Password: getEnv("SMTP_PASS", ""),
+		From:     getEnv("SMTP_FROM", ""),
+	}
+	emailService := notification.NewService(emailConfig)
 
-	// API endpoint
-	http.HandleFunc("/api/scan", api.HandleScan)
-	http.HandleFunc("/health", api.HandleHealth)
+	// API Server
+	server := &api.Server{
+		EmailService: emailService,
+	}
 
-	log.Println("Server starting on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	http.HandleFunc("/api/scan", server.HandleScan)
+	http.HandleFunc("/api/alert", server.HandleAlert)
+	http.HandleFunc("/health", server.HandleHealth)
+	http.Handle("/", http.FileServer(http.Dir("./static")))
+
+	port := getEnv("PORT", "8080")
+	log.Printf("Server starting on :%s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
 }

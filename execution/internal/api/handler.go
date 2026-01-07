@@ -3,12 +3,17 @@ package api
 import (
 	"encoding/json"
 	"execution/internal/ferry"
+	"execution/internal/notification"
 	"log"
 	"net/http"
 	"time"
 )
 
-func HandleScan(w http.ResponseWriter, r *http.Request) {
+type Server struct {
+	EmailService *notification.Service
+}
+
+func (s *Server) HandleScan(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 	direction := r.URL.Query().Get("direction")
 	fromTime := r.URL.Query().Get("from")
@@ -61,7 +66,46 @@ func HandleScan(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func HandleHealth(w http.ResponseWriter, r *http.Request) {
+type AlertRequest struct {
+	Email   string `json:"email"`
+	Message string `json:"message"`
+}
+
+func (s *Server) HandleAlert(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req AlertRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" {
+		http.Error(w, "Email required", http.StatusBadRequest)
+		return
+	}
+
+	if s.EmailService == nil {
+		http.Error(w, "Email service not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	go func() {
+		if err := s.EmailService.SendAlert(req.Email, req.Message); err != nil {
+			log.Printf("Failed to send alert to %s: %v", req.Email, err)
+		} else {
+			log.Printf("Alert sent to %s", req.Email)
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Alert queued"))
+}
+
+func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }

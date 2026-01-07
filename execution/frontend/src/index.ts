@@ -28,6 +28,20 @@ const monitorBtn = document.getElementById('monitorBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 const resultsDiv = document.getElementById('results') as HTMLDivElement;
 
+// New Elements
+const monitorControls = document.getElementById('monitorControls') as HTMLDivElement;
+const alertBrowserCheck = document.getElementById('alertBrowser') as HTMLInputElement;
+const alertEmailCheck = document.getElementById('alertEmail') as HTMLInputElement;
+const emailInput = document.getElementById('email') as HTMLInputElement;
+
+if (alertEmailCheck) {
+    alertEmailCheck.addEventListener('change', () => {
+        emailInput.style.display = alertEmailCheck.checked ? 'block' : 'none';
+        // Auto-focus if checked
+        if (alertEmailCheck.checked) emailInput.focus();
+    });
+}
+
 // Set default date
 if (dateInput) {
     dateInput.valueAsDate = new Date();
@@ -56,7 +70,9 @@ async function checkAvailability() {
         statusDiv.innerText = "";
 
         renderResults();
-        monitorBtn.style.display = 'block';
+
+        // Fix: Show parent container
+        if (monitorControls) monitorControls.style.display = 'flex';
 
     } catch (err) {
         if (err instanceof Error) {
@@ -112,6 +128,23 @@ function toggleSelection(id: string) {
     // Re-render isn't strictly necessary for state but good for consistency if we added visuals
 }
 
+// Throttle state
+let lastEmailSentTime: number = 0;
+const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
+
+async function sendEmailAlert(email: string, message: string) {
+    try {
+        await fetch('/api/alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, message })
+        });
+        console.log("Email alert requested");
+    } catch (e) {
+        console.error("Failed to send email alert", e);
+    }
+}
+
 async function monitorLoop() {
     try {
         const data = await fetchTrips();
@@ -128,9 +161,18 @@ async function monitorLoop() {
             // Play sound
             beep.play().catch(e => console.error("Audio error:", e));
 
-            // Notification
+            // Browser Notification
             if (Notification.permission === "granted") {
                 new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
+            }
+
+            // Email Notification
+            const email = (document.getElementById('email') as HTMLInputElement).value;
+            const now = Date.now();
+            if (email && (now - lastEmailSentTime > EMAIL_COOLDOWN)) {
+                await sendEmailAlert(email, `Spots available for ferries at: ${foundText}`);
+                lastEmailSentTime = now;
+                statusDiv.innerHTML += `<br><small style="color: #666">Email alert sent!</small>`;
             }
 
             // Don't stop automatically, just alert
