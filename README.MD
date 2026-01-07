@@ -16,18 +16,21 @@ docker run -d -p 8080:8080 ghcr.io/koorikla/ferryscanner:latest
 ```
 
 ### 🛠️ Build & Run (Local)
-1.  **Clone & Run**: (One-liner)**:
-   ```bash
-   docker build -t ferry-scanner . && docker run -d -p 8080:8080 --name ferry-scanner ferry-scanner
-   ```
 
-2. **Access**:
-   Open [http://localhost:8080](http://localhost:8080) in your browser.
+**Option A: Using Make (Recommended)**
+```bash
+make run
+```
+To stop: `make stop`
 
-3. **Stop**:
-   ```bash
-   docker rm -f ferry-scanner
-   ```
+**Option B: Using Docker directly**
+```bash
+docker build -t ferry-scanner .
+docker run -d -p 8080:8080 --name ferry-scanner ferry-scanner
+```
+
+### Access
+Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 ### Testing
 To run the backend unit tests:
