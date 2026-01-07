@@ -1,5 +1,13 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
-bin
-include
-lib
-pyvenv.cfg
+# Binaries
+ferry-scanner
+
+# Node
+**/node_modules
+npm-debug.log
+
+# Build Artifacts
+execution/static/
+!execution/static/.keep
+
+# OS
+.DS_Store

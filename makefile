@@ -1,5 +1,23 @@
-build:
-	docker build -t car-spot-notifier .
+IMAGE_NAME := ferry-scanner
+PORT := 8080
 
-run:
-	docker run --rm car-spot-notifier --date 2025-05-10 --direction HR --start-hour 8 --end-hour 9 --phone +37212345678
+.PHONY: build run stop logs test
+
+build: build-front
+	docker build -t $(IMAGE_NAME) .
+
+build-front:
+	cd execution/frontend && npm install && npm run build
+
+test:
+	cd execution && go test -v ./...
+
+run: stop build
+	docker run -d -p $(PORT):$(PORT) --name $(IMAGE_NAME) $(IMAGE_NAME)
+	@echo "Server running on http://localhost:$(PORT)"
+
+stop:
+	-docker rm -f $(IMAGE_NAME)
+
+logs:
+	docker logs -f $(IMAGE_NAME)

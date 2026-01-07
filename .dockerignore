@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+Makefile
+
+# Node
+**/node_modules
+npm-debug.log
+
+# Build Artifacts
+execution/frontend/src
+execution/frontend/tsconfig.json
+execution/frontend/package.json
+execution/frontend/package-lock.json
+
+# OS
+.DS_Store

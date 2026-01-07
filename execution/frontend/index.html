@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferry Scanner</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background: #fff;
+        }
+
+        .row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:hover {
+            filter: brightness(90%);
+        }
+
+        #status {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 1.1rem;
+            min-height: 1.5rem;
+        }
+
+        .success {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .monitoring {
+            color: var(--primary-color);
+            font-style: italic;
+        }
+
+        #results {
+            margin-top: 2rem;
+            display: grid;
+            gap: 1rem;
+        }
+
+        .trip-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .trip-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .trip-card.available {
+            border-left: 5px solid var(--success-color);
+        }
+
+        .trip-card.full {
+            border-left: 5px solid var(--danger-color);
+            background-color: #fff5f5;
+        }
+
+        .trip-time {
+            flex: 1;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .trip-spots {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .spots-available {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .spots-full {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            margin-right: 1rem;
+            cursor: pointer;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .row {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .trip-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .trip-card label {
+                width: 100%;
+                display: flex;
+                align-items: center;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🛳️ Ferry Scanner</h1>
+
+        <div class="form-group">
+            <label for="date">Date</label>
+            <input type="date" id="date">
+        </div>
+
+        <div class="form-group">
+            <label for="direction">Direction</label>
+            <select id="direction">
+                <option value="VK">Virtsu -> Kuivastu</option>
+                <option value="KV">Kuivastu -> Virtsu</option>
+                <option value="HR">Heltermaa -> Rohuküla</option>
+                <option value="RH">Rohuküla -> Heltermaa</option>
+            </select>
+        </div>
+
+        <div class="form-group row">
+            <div style="flex: 1;">
+                <label for="startTime">From Time</label>
+                <input type="time" id="startTime">
+            </div>
+            <div style="flex: 1;">
+                <label for="endTime">To Time</label>
+                <input type="time" id="endTime">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button onclick="checkAvailability()" id="searchBtn">Find Ferries</button>
+            <button onclick="toggleMonitoring()" id="monitorBtn"
+                style="background-color: var(--success-color); display: none;">Start Monitoring Selected</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

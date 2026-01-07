@@ -1,0 +1,12 @@
+{
+    "name": "ferry-scanner-frontend",
+    "version": "1.0.0",
+    "scripts": {
+        "build": "esbuild src/index.ts --bundle --outfile=../static/app.js --minify && cp index.html ../static/index.html",
+        "watch": "cp index.html ../static/index.html && esbuild src/index.ts --bundle --outfile=../static/app.js --watch"
+    },
+    "devDependencies": {
+        "esbuild": "^0.24.2",
+        "typescript": "^5.7.3"
+    }
+}
