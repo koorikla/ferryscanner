@@ -345,7 +345,7 @@ async function monitorLoop() {
                     beepInterval = window.setInterval(playBeep, 5000);
                 }
 
-                if (Notification.permission === "granted") {
+                if ("Notification" in window && Notification.permission === "granted") {
                     new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
                 }
             } else {
