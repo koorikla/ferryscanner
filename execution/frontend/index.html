@@ -287,8 +287,21 @@
                         2. Get ID from <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>
                     </small>
                 </div>
+
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <label style="font-weight: bold; font-size: 0.9em; color: #555;">Poll Interval:</label>
+                    <select id="pollInterval" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="10000">10 Seconds</option>
+                        <option value="30000" selected>30 Seconds</option>
+                        <option value="60000">1 Minute</option>
+                        <option value="300000">5 Minutes</option>
+                    </select>
+                </div>
+
                 <button onclick="toggleMonitoring()" id="monitorBtn"
                     style="background-color: var(--success-color);">Start Monitoring Selected</button>
+
+
             </div>
         </div>
 

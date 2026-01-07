@@ -43,6 +43,11 @@ const alertTelegramCheck = document.getElementById('alertTelegram') as HTMLInput
 const emailInput = document.getElementById('email') as HTMLInputElement;
 const telegramInputWrapper = document.getElementById('telegramInputWrapper') as HTMLDivElement;
 const telegramChatIdInput = document.getElementById('telegramChatId') as HTMLInputElement;
+const pollIntervalSelect = document.getElementById('pollInterval') as HTMLSelectElement;
+
+let nextPollTime = 0;
+let progressInterval: number | null = null;
+let currentPollDuration = 30000;
 
 
 // Audio Helper
@@ -67,9 +72,10 @@ function saveSettings() {
         startTime: startTimeInput.value,
         endTime: endTimeInput.value,
         alertBrowser: alertBrowserCheck.checked,
-        alertEmail: alertEmailCheck.checked,
-        email: emailInput.value || ""
-        // alertTelegram and telegramChatId will be added here later
+        alertTelegram: alertTelegramCheck ? alertTelegramCheck.checked : false,
+        email: emailInput.value || "",
+        telegramChatId: telegramChatIdInput ? telegramChatIdInput.value : "",
+        pollInterval: pollIntervalSelect ? pollIntervalSelect.value : "30000"
     };
     localStorage.setItem('ferrySettings', JSON.stringify(settings));
 }
@@ -92,7 +98,14 @@ function loadSettings() {
                 alertEmailCheck.checked = settings.alertEmail;
                 if (settings.alertEmail) emailInput.style.display = 'block';
             }
-            if (settings.email) emailInput.value = settings.email;
+            if (settings.email && emailInput) emailInput.value = settings.email;
+
+            if (settings.alertTelegram !== undefined && alertTelegramCheck) {
+                alertTelegramCheck.checked = settings.alertTelegram;
+                if (settings.alertTelegram && telegramInputWrapper) telegramInputWrapper.style.display = 'block';
+            }
+            if (settings.telegramChatId && telegramChatIdInput) telegramChatIdInput.value = settings.telegramChatId;
+            if (settings.pollInterval && pollIntervalSelect) pollIntervalSelect.value = settings.pollInterval;
         } catch (e) {
             console.error("Failed to load settings", e);
             dateInput.valueAsDate = new Date();
@@ -112,7 +125,7 @@ function init() {
     loadSettings();
 
     // Change Listeners for persistence
-    const inputs = [dateInput, directionSelect, vehicleTypeSelect, startTimeInput, endTimeInput, alertBrowserCheck, alertEmailCheck, alertTelegramCheck, emailInput, telegramChatIdInput];
+    const inputs = [dateInput, directionSelect, vehicleTypeSelect, startTimeInput, endTimeInput, alertBrowserCheck, alertEmailCheck, alertTelegramCheck, emailInput, telegramChatIdInput, pollIntervalSelect];
     inputs.forEach(input => {
         if (input) input.addEventListener('change', saveSettings);
     });
@@ -262,6 +275,46 @@ async function sendEmailAlert(email: string, telegramChatId: string, message: st
     }
 }
 
+// Logic for progress animation on button
+function startProgress(duration: number) {
+    nextPollTime = Date.now() + duration;
+    currentPollDuration = duration;
+
+    if (progressInterval) clearInterval(progressInterval);
+    updateProgress(); // Immediate
+    progressInterval = window.setInterval(updateProgress, 100);
+}
+
+function stopProgress() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    if (monitorBtn) {
+        monitorBtn.style.background = ""; // Reset
+    }
+}
+
+function updateProgress() {
+    if (!monitorBtn) return;
+    const now = Date.now();
+    const remaining = nextPollTime - now;
+
+    if (remaining <= 0) {
+        // Full
+        monitorBtn.style.background = `linear-gradient(to right, #bd2130 100%, var(--danger-color) 100%)`;
+        return;
+    }
+
+    // Fill up
+    const passed = currentPollDuration - remaining;
+    const pct = Math.min(100, Math.max(0, (passed / currentPollDuration) * 100));
+
+    // Darker red filling up the standard red
+    monitorBtn.style.background = `linear-gradient(to right, #a71d2a ${pct}%, var(--danger-color) ${pct}%)`;
+}
+
+
 async function monitorLoop() {
     try {
         const data = await fetchTrips();
@@ -325,6 +378,9 @@ async function monitorLoop() {
             statusDiv.innerHTML = `<p class="monitoring">Monitoring ${selectedTrips.size} ferries... <br>Last checked: ${time}</p>`;
         }
 
+        // RESTART PROGRESS
+        startProgress(currentPollDuration);
+
     } catch (err) {
         console.error("Monitor error", err);
         stopBeep();
@@ -362,8 +418,13 @@ function toggleMonitoring() {
         clearInterval(monitoringInterval);
         monitoringInterval = null;
         stopBeep();
+        stopProgress();
         monitorBtn.innerText = "Start Monitoring Selected";
         monitorBtn.style.backgroundColor = "var(--success-color)";
+        // Clear background style specifically
+        monitorBtn.style.background = "";
+        monitorBtn.style.backgroundColor = "var(--success-color)";
+
         statusDiv.innerText = "Monitoring stopped.";
     } else {
         if (selectedTrips.size === 0) {
@@ -371,9 +432,15 @@ function toggleMonitoring() {
             return;
         }
 
+        const intervalMs = pollIntervalSelect ? (parseInt(pollIntervalSelect.value, 10) || 30000) : 30000;
+        currentPollDuration = intervalMs;
+
         monitorLoop(); // Check immediately
-        monitoringInterval = window.setInterval(monitorLoop, 30000);
+        startProgress(intervalMs);
+
+        monitoringInterval = window.setInterval(monitorLoop, intervalMs);
         monitorBtn.innerText = "Stop Monitoring";
+        // Base color will be set by updateProgress, but set initial here
         monitorBtn.style.backgroundColor = "var(--danger-color)";
     }
 }
