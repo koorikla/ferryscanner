@@ -35,9 +35,16 @@
 7.  **Future**: Send Email alert.
 
 ## Commands
-- **Run**: `make run`
-- **Test**: `make test`
-- **Stop**: `make stop` The browser will poll every 30s and alert when spots open.
+- **Run**: `make run` (Builds Frontend + Backend + Docker)
+- **Test**: `make test` (Runs Go Unit Tests)
+- **Stop**: `make stop`
+- **Build Frontend**: `make build-front`
+
+## CI/CD
+- **Platform**: GitHub Actions
+- **Workflow**: `.github/workflows/docker-publish.yml`
+- **Triggers**: Push to `main`
+- **Artifact**: Docker Image pushed to `ghcr.io/koorikla/ferryscanner:latest` The browser will poll every 30s and alert when spots open.
 
 **Outputs**:
 - Web UI showing available trips.

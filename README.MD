@@ -9,8 +9,14 @@ The easiest way to run the application is with Docker.
 ### Prerequisites
 - Docker installed.
 
-### Run
-1. **Build and Run (One-liner)**:
+### 🚀 Quick Run (Pre-built)
+Run the latest version immediately without building:
+```bash
+docker run -d -p 8080:8080 ghcr.io/koorikla/ferryscanner:latest
+```
+
+### 🛠️ Build & Run (Local)
+1.  **Clone & Run**: (One-liner)**:
    ```bash
    docker build -t ferry-scanner . && docker run -d -p 8080:8080 --name ferry-scanner ferry-scanner
    ```
@@ -32,8 +38,25 @@ make test
 ## Development
 
 - **Backend**: Go (1.23)
-- **Frontend**: HTML/JS (Vanilla)
-- **Structure**:
+- **Frontend**: TypeScript, HTML5, CSS3, Vanilla JS
+- **Container**: Docker (Scratch image)
+
+## Deployment
+
+### GitHub Actions
+Every push to the `main` branch automatically triggers a workflow that:
+1.  Builds the TypeScript frontend.
+2.  Builds the Docker image.
+3.  Pushes the image to **GitHub Container Registry (GHCR)**.
+
+### Manual Build
+```bash
+make build
+# or
+docker build -t ferry-scanner .
+```
+
+## Structure
     - `execution/`: Source code
     - `directives/`: Standard Operating Procedures
 
