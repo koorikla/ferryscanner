@@ -18,13 +18,17 @@ type FerryItem struct {
 }
 
 type Capacities struct {
-	Sv int `json:"sv"` // Small vehicles (cars)
+	Sv  int `json:"sv"`  // Small vehicles (cars)
+	Pcs int `json:"pcs"` // Passengers (walking)
+	Bv  int `json:"bv"`  // Bus/Truck
 }
 
 type Trip struct {
-	Start    string `json:"start"`
-	End      string `json:"end"`
-	CarSpots int    `json:"car_spots"`
+	Start          string `json:"start"`
+	End            string `json:"end"`
+	CarSpots       int    `json:"car_spots"`
+	PassengerSpots int    `json:"passenger_spots"`
+	BusSpots       int    `json:"bus_spots"`
 }
 
 // GetTrips fetches all ferry trips, regardless of availability.
@@ -68,9 +72,11 @@ func GetTrips(date string, direction string) ([]Trip, error) {
 	var trips []Trip
 	for _, item := range ferryResp.Items {
 		trips = append(trips, Trip{
-			Start:    item.DtStart,
-			End:      item.DtEnd,
-			CarSpots: item.Capacities.Sv,
+			Start:          item.DtStart,
+			End:            item.DtEnd,
+			CarSpots:       item.Capacities.Sv,
+			PassengerSpots: item.Capacities.Pcs,
+			BusSpots:       item.Capacities.Bv,
 		})
 	}
 

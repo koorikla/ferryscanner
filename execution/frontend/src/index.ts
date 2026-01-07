@@ -1,7 +1,10 @@
+
 interface Trip {
     start: string;
     end: string;
     car_spots: number;
+    passenger_spots: number;
+    bus_spots: number;
 }
 
 interface FerryResponse {
@@ -14,6 +17,8 @@ interface FerryResponse {
 let monitoringInterval: number | null = null;
 const selectedTrips = new Set<string>();
 let lastData: Trip[] = [];
+let lastEmailSentTime: number = 0;
+const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
 // Audio
 const beep = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
@@ -21,6 +26,7 @@ const beep = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.o
 // DOM Elements
 const dateInput = document.getElementById('date') as HTMLInputElement;
 const directionSelect = document.getElementById('direction') as HTMLSelectElement;
+const vehicleTypeSelect = document.getElementById('vehicleType') as HTMLSelectElement;
 const startTimeInput = document.getElementById('startTime') as HTMLInputElement;
 const endTimeInput = document.getElementById('endTime') as HTMLInputElement;
 const searchBtn = document.getElementById('searchBtn') as HTMLButtonElement;
@@ -28,23 +34,24 @@ const monitorBtn = document.getElementById('monitorBtn') as HTMLButtonElement;
 const statusDiv = document.getElementById('status') as HTMLDivElement;
 const resultsDiv = document.getElementById('results') as HTMLDivElement;
 
-// New Elements
+// Monitor Control Elements
 const monitorControls = document.getElementById('monitorControls') as HTMLDivElement;
 const alertBrowserCheck = document.getElementById('alertBrowser') as HTMLInputElement;
 const alertEmailCheck = document.getElementById('alertEmail') as HTMLInputElement;
 const emailInput = document.getElementById('email') as HTMLInputElement;
 
-if (alertEmailCheck) {
-    alertEmailCheck.addEventListener('change', () => {
-        emailInput.style.display = alertEmailCheck.checked ? 'block' : 'none';
-        // Auto-focus if checked
-        if (alertEmailCheck.checked) emailInput.focus();
-    });
-}
-
-// Set default date
+// Initialize
 if (dateInput) {
     dateInput.valueAsDate = new Date();
+}
+
+if (alertEmailCheck) {
+    alertEmailCheck.addEventListener('change', () => {
+        if (emailInput) {
+            emailInput.style.display = alertEmailCheck.checked ? 'block' : 'none';
+            if (alertEmailCheck.checked) emailInput.focus();
+        }
+    });
 }
 
 async function fetchTrips(): Promise<FerryResponse> {
@@ -71,7 +78,6 @@ async function checkAvailability() {
 
         renderResults();
 
-        // Fix: Show parent container
         if (monitorControls) monitorControls.style.display = 'flex';
 
     } catch (err) {
@@ -89,13 +95,32 @@ function renderResults() {
         return;
     }
 
+    const type = vehicleTypeSelect ? vehicleTypeSelect.value : 'sv';
+
     lastData.forEach((trip) => {
         const start = new Date(trip.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const end = new Date(trip.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const id = trip.start;
 
         const isSelected = selectedTrips.has(id);
-        const hasSpots = trip.car_spots > 0;
+
+        let hasSpots = false;
+        let spotsText = "";
+
+        if (type === 'sv') {
+            hasSpots = trip.car_spots > 0;
+            spotsText = `${trip.car_spots} car spots`;
+        } else if (type === 'bv') {
+            hasSpots = trip.bus_spots > 0;
+            spotsText = `${trip.bus_spots} bus spots`;
+        } else if (type === 'pcs') {
+            hasSpots = trip.passenger_spots > 0;
+            spotsText = `${trip.passenger_spots} passengers`;
+        } else {
+            // Any
+            hasSpots = (trip.car_spots + trip.bus_spots + trip.passenger_spots) > 0;
+            spotsText = `${trip.car_spots}C / ${trip.bus_spots}B / ${trip.passenger_spots}P`;
+        }
 
         const div = document.createElement('div');
         div.className = `trip-card ${hasSpots ? 'available' : 'full'}`;
@@ -105,13 +130,11 @@ function renderResults() {
                 <input type="checkbox" data-id="${id}" ${isSelected ? 'checked' : ''}>
                 <div class="trip-time">${start} - ${end}</div>
                 <div class="trip-spots ${hasSpots ? 'spots-available' : 'spots-full'}">
-                    ${hasSpots ? trip.car_spots + ' spots' : 'FULL'}
+                    ${hasSpots ? spotsText : 'FULL'}
                 </div>
             </label>
         `;
 
-        // Add event listener manually to avoid inline onclick limitations in module scope if needed, 
-        // but for simplicity we'll delegate or attach here.
         const checkbox = div.querySelector('input[type="checkbox"]');
         checkbox?.addEventListener('change', () => toggleSelection(id));
 
@@ -125,12 +148,7 @@ function toggleSelection(id: string) {
     } else {
         selectedTrips.add(id);
     }
-    // Re-render isn't strictly necessary for state but good for consistency if we added visuals
 }
-
-// Throttle state
-let lastEmailSentTime: number = 0;
-const EMAIL_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
 async function sendEmailAlert(email: string, message: string) {
     try {
@@ -151,31 +169,47 @@ async function monitorLoop() {
         lastData = data.items || [];
         renderResults(); // Update UI
 
-        // Check matches
-        const matches = lastData.filter(t => selectedTrips.has(t.start) && t.car_spots > 0);
+        // Check matches based on filter
+        const type = vehicleTypeSelect ? vehicleTypeSelect.value : 'sv';
+
+        const matches = lastData.filter(t => {
+            if (!selectedTrips.has(t.start)) return false;
+
+            if (type === 'sv') return t.car_spots > 0;
+            if (type === 'bv') return t.bus_spots > 0;
+            if (type === 'pcs') return t.passenger_spots > 0;
+            // Any
+            return (t.car_spots + t.bus_spots + t.passenger_spots) > 0;
+        });
 
         if (matches.length > 0) {
             const foundText = matches.map(t => new Date(t.start).toLocaleTimeString()).join(', ');
             statusDiv.innerHTML = `<p class="success" style="font-size: 1.2rem; animation: pulse 1s infinite;">SPOTS FOUND for ${foundText}!</p>`;
 
-            // Play sound
-            beep.play().catch(e => console.error("Audio error:", e));
+            // Logic: Browser Alert
+            if (alertBrowserCheck && alertBrowserCheck.checked) {
+                // Play sound
+                beep.play().catch(e => console.error("Audio error:", e));
 
-            // Browser Notification
-            if (Notification.permission === "granted") {
-                new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
+                // Browser Notification
+                if (Notification.permission === "granted") {
+                    new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
+                }
             }
 
-            // Email Notification
-            const email = (document.getElementById('email') as HTMLInputElement).value;
-            const now = Date.now();
-            if (email && (now - lastEmailSentTime > EMAIL_COOLDOWN)) {
-                await sendEmailAlert(email, `Spots available for ferries at: ${foundText}`);
-                lastEmailSentTime = now;
-                statusDiv.innerHTML += `<br><small style="color: #666">Email alert sent!</small>`;
+            // Logic: Email Alert
+            if (alertEmailCheck && alertEmailCheck.checked) {
+                const email = emailInput.value;
+                const now = Date.now();
+                if (email && (now - lastEmailSentTime > EMAIL_COOLDOWN)) {
+                    await sendEmailAlert(email, `Spots available for ferries at: ${foundText} (${type.toUpperCase()})`);
+                    lastEmailSentTime = now;
+                    statusDiv.innerHTML += `<br><small style="color: #666">Email alert sent!</small>`;
+                } else if (!email) {
+                    statusDiv.innerHTML += `<br><small style="color: red">Email checked but address missing!</small>`;
+                }
             }
 
-            // Don't stop automatically, just alert
         } else {
             const time = new Date().toLocaleTimeString();
             statusDiv.innerHTML = `<p class="monitoring">Monitoring ${selectedTrips.size} ferries... <br>Last checked: ${time}</p>`;
@@ -188,9 +222,19 @@ async function monitorLoop() {
 }
 
 function toggleMonitoring() {
-    // Request notification permission
-    if ("Notification" in window && Notification.permission !== "granted") {
+    const useBrowser = alertBrowserCheck ? alertBrowserCheck.checked : true;
+    const useEmail = alertEmailCheck ? alertEmailCheck.checked : false;
+
+    // Request notification permission if browser option checked
+    if (useBrowser && "Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
+    }
+
+    // Validate Email if checked
+    if (useEmail && !emailInput.value) {
+        alert("Please enter an email address for email alerts.");
+        if (emailInput) emailInput.focus();
+        return;
     }
 
     if (monitoringInterval) {
@@ -206,7 +250,6 @@ function toggleMonitoring() {
         }
 
         monitorLoop(); // Check immediately
-        // Use window.setInterval to avoid TS ambiguity with Node.js timer
         monitoringInterval = window.setInterval(monitorLoop, 30000);
         monitorBtn.innerText = "Stop Monitoring";
         monitorBtn.style.backgroundColor = "var(--danger-color)";
