@@ -11,3 +11,4 @@ execution/static/
 
 # OS
 .DS_Store
+.env
