@@ -39,7 +39,18 @@ func GetTrips(date string, direction string) ([]Trip, error) {
 	url := fmt.Sprintf("https://www.praamid.ee/online/events?direction=%s&departure-date=%s&time-shift=300", direction, date)
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers to mimic a browser
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Referer", "https://www.praamid.ee/")
+	req.Header.Set("Origin", "https://www.praamid.ee")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ferry data: %w", err)
 	}
