@@ -345,8 +345,8 @@ async function monitorLoop() {
                     beepInterval = window.setInterval(playBeep, 5000);
                 }
 
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
+                if ("Notification" in window && (window as any).Notification.permission === "granted") {
+                    new (window as any).Notification("Ferry Spots Found!", { body: `Spots available at: ${foundText}` });
                 }
             } else {
                 stopBeep();
@@ -398,8 +398,8 @@ function toggleMonitoring() {
     const useTelegram = alertTelegramCheck ? alertTelegramCheck.checked : false;
 
     // Request notification permission
-    if (useBrowser && "Notification" in window && Notification.permission !== "granted") {
-        Notification.requestPermission();
+    if (useBrowser && "Notification" in window && (window as any).Notification.permission !== "granted") {
+        (window as any).Notification.requestPermission();
     }
 
     // Validation
