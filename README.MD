@@ -44,13 +44,35 @@ make test
 - **Frontend**: TypeScript, HTML5, CSS3, Vanilla JS
 - **Container**: Docker (Scratch image)
 
+## Configuration (Time & Email)
+
+The server is stateless but requires environment variables for configuration.
+
+### Environment Variables
+Create a `.env` file locally or set these in your cloud provider:
+
+```bash
+PORT=8080
+
+# Email Alerts (Optional)
+# Example for Gmail:
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=your_email@gmail.com
+```
+
+> **Note for Gmail:** You cannot use your regular password. You MUST enable 2FA and create an [App Password](https://myaccount.google.com/apppasswords).
+
 ## Deployment
 
-### GitHub Actions
-Every push to the `main` branch automatically triggers a workflow that:
-1.  Builds the TypeScript frontend.
-2.  Builds the Docker image.
-3.  Pushes the image to **GitHub Container Registry (GHCR)**.
+### GitHub Actions (Recommended)
+This repo includes a GitHub Action to automatically build and push the Docker image to GHCR.
+1.  Push to `main`.
+2.  Image is built: `ghcr.io/koorikla/ferryscanner:latest`
+3.  Deploy this image to your VPS or Cloud (e.g. Koyeb, DigitalOcean).
+    -   **Important:** Set the `SMTP_` variables in your cloud dashboard secret management if you want email alerts.
 
 ### Manual Build
 ```bash
